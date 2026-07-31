@@ -10,7 +10,7 @@ Automatizar o processamento de documentos PDF enviados para Amazon S3. O workflo
 
 `S3/EventBridge -> Step Functions -> Lambda/Textract -> Bedrock -> Lambda/Parser -> KMS -> DynamoDB`
 
-O workshop descreve essa sequência: S3 com EventBridge dispara a máquina; uma Lambda utiliza Textract para extrair conteúdo; Bedrock produz resumo e categoria; KMS criptografa o resumo; e DynamoDB persiste os dados.
+A solução escreve a sequência: S3 com EventBridge dispara a máquina; uma Lambda utiliza Textract para extrair conteúdo; Bedrock produz resumo e categoria; KMS criptografa o resumo; e DynamoDB persiste os dados.
 
 ## Nome da State Machine
 

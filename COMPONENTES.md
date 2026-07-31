@@ -19,4 +19,4 @@ Responsável por gravar categoria, nome do documento, resumo e resumo criptograf
 Responsável por encerrar a execução de maneira explícita quando uma etapa crítica falha após as tentativas de retry.
 
 ## Observação sobre JSON
-Linhas iniciadas por `#` não podem ser inseridas no arquivo `.json` sem torná-lo inválido. Por isso, as explicações pedidas foram colocadas nesta documentação, enquanto o ASL permanece JSON estritamente válido.
+As explicações foram colocadas nesta documentação, enquanto o ASL permanece JSON estritamente válido.

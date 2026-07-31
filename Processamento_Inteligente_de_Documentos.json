@@ -1,0 +1,169 @@
+{
+  "Comment": "Processamento Inteligente de Documentos. O fluxo recebe um evento de upload no S3, extrai texto via Lambda/Textract, usa Amazon Bedrock para gerar resumo e categoria, criptografa o resumo com KMS e persiste os resultados no DynamoDB.",
+  "QueryLanguage": "JSONata",
+  "StartAt": "Extração de Texto do PDF",
+  "States": {
+    "Extração de Texto do PDF": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Arguments": {
+        "FunctionName": "${TEXTRACT_LAMBDA_ARN}",
+        "Payload": {
+          "bucket": "{% $states.input.detail.bucket.name %}",
+          "key": "{% $states.input.detail.object.key %}"
+        }
+      },
+      "Output": "{% $states.result.Payload %}",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "Falha no Processamento"
+        }
+      ],
+      "Next": "Bedrock Generate Summary and Category",
+      "Assign": {
+        "filename": "{% $states.result.Payload.filename %}",
+        "pdfextract": "{% $states.result.Payload.text %}"
+      }
+    },
+    "Bedrock Generate Summary and Category": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:bedrockruntime:invokeModel",
+      "Arguments": {
+        "modelId": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+        "contentType": "application/json",
+        "accept": "application/json",
+        "body": {
+          "anthropic_version": "bedrock-2023-05-31",
+          "max_tokens": 3000,
+          "temperature": 0.3,
+          "system": "Você é um assistente especialista em análise documental. Classifique o documento e gere um resumo objetivo. Responda SOMENTE em JSON válido com as chaves summary e category.",
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "{% $pdfextract %}"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "Assign": {
+        "model_response": "{% $states.result.body %}"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Bedrock.ThrottlingException",
+            "Bedrock.ServiceUnavailableException",
+            "States.TaskFailed"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 4,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "Falha no Processamento"
+        }
+      ],
+      "Next": "Get Summary and Category"
+    },
+    "Get Summary and Category": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Arguments": {
+        "FunctionName": "${GET_SUMMARY_CATEGORY_LAMBDA_ARN}",
+        "Payload": {
+          "model_response": "{% $model_response %}"
+        }
+      },
+      "Output": "{% $parse($states.result.Payload.body).parsed_data %}",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "Falha no Processamento"
+        }
+      ],
+      "Next": "Encrypt Summary"
+    },
+    "Encrypt Summary": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:kms:encrypt",
+      "Arguments": {
+        "KeyId": "${KMS_KEY_ID}",
+        "Plaintext": "{% $states.input.summary %}"
+      },
+      "Assign": {
+        "encryptedText": "{% $states.result.CiphertextBlob %}"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "Falha no Processamento"
+        }
+      ],
+      "Next": "Save Summary"
+    },
+    "Save Summary": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:putItem",
+      "Arguments": {
+        "TableName": "${DYNAMODB_TABLE_NAME}",
+        "Item": {
+          "category": {
+            "S": "{% $states.input.category %}"
+          },
+          "doc-name": {
+            "S": "{% $filename %}"
+          },
+          "contract-summary": {
+            "S": "{% $states.input.summary %}"
+          },
+          "contract-summary-encrypted": {
+            "S": "{% $encryptedText %}"
+          }
+        }
+      },
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "Falha no Processamento"
+        }
+      ],
+      "End": true
+    },
+    "Falha no Processamento": {
+      "Type": "Fail",
+      "Error": "IntelligentDocumentProcessingFailed",
+      "Cause": "Falha em uma etapa de extração, inferência, parsing, criptografia ou persistência."
+    }
+  }
+}

@@ -1,6 +1,6 @@
 # Processamento Inteligente de Documentos
 
-Solução baseada em **AWS Step Functions + Amazon Bedrock + Amazon Textract + AWS KMS + Amazon DynamoDB**, derivada do racional dos quatro PDFs do workshop de Intelligent Document Processing.
+Solução baseada em **AWS Step Functions + Amazon Bedrock + Amazon Textract + AWS KMS + Amazon DynamoDB**, derivada do racional "Criando um Assistente de Delivery com AWS Step Functions e Bedrock" para o desafio como publicado neste repertório.
 
 ## Objetivo
 
@@ -15,8 +15,6 @@ O workshop descreve essa sequência: S3 com EventBridge dispara a máquina; uma 
 ## Nome da State Machine
 
 **Processamento_Inteligente_de_Documentos**
-
-O nome antigo `sfw-genai-doc-processing` foi substituído conforme solicitado.
 
 ## Estrutura para GitHub
 
@@ -81,7 +79,7 @@ A role da State Machine deve permitir, conforme os recursos reais do ambiente:
 
 ## Observação sobre comentários `#`
 
-JSON/ASL não suporta comentários com `#`. Para manter o arquivo publicável e válido, as explicações dos componentes estão em `docs/COMPONENTES.md`, com cada seção precedida por `#`, enquanto o arquivo principal permanece JSON válido.
+Para manter o arquivo publicável e válido, as explicações dos componentes estão em `docs/COMPONENTES.md`, com cada seção precedida por `#`, enquanto o arquivo principal permanece JSON válido.
 
 ## Validação
 
